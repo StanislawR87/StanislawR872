@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twórczość Stanisława</title>
+  <style>
+    * { user-select: none; -webkit-user-select: none; }
+    body { margin: 0; padding: 0; -webkit-touch-callout: none; font-family: 'Georgia', serif; background: #f7f0fa; color: #3e2f47; }
+    nav { background-color: #d6c2e0; padding: 1em; display: flex; flex-wrap: wrap; justify-content: center; gap: 1em; border-bottom: 2px solid #b89cc8; }
+    nav a { color: #4b2e2e; text-decoration: none; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
+    .tab { display: none; padding: 2em; }
+    .active { display: block; }
+    .item { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; border-radius: 8px; background: #f9f9f9; position: relative; }
+    .item button { background: #a65488; color: white; border: none; padding: 0.5em 1em; margin-left: 5px; border-radius: 5px; cursor: pointer; }
+    .admin-buttons { position: absolute; top: 5px; right: 5px; }
+    .feather { position: absolute; top: 20px; left: 10px; width: 60px; animation: penWrite 5s ease-in-out infinite; z-index: 1; }
+    .gothic-book { display: block; margin: 2em auto; width: 120px; animation: openBook 4s ease-out forwards; }
+    @keyframes penWrite {
+      0% { transform: translateX(0); opacity: 0; }
+      50% { transform: translateX(50px); opacity: 1; }
+      100% { transform: translateX(100px); opacity: 0; }
+    }
+    @keyframes openBook {
+      0% { transform: rotateY(90deg); opacity: 0; }
+      100% { transform: rotateY(0deg); opacity: 1; }
+    }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+  <nav>
+    <a href="#" onclick="showTab('wiersze')">Moje Wiersze</a>
+    <a href="#" onclick="showTab('muzyka')">Moja Muzyka</a>
+    <a href="#" onclick="showTab('ksiazki')">Moje Książki</a>
+    <a href="#" onclick="showTab('opowiadania')">Moje Opowiadania</a>
+    <a href="#" onclick="showTab('dodaj')">Dodaj Wiersz</a>
+    <a href="#" onclick="showTab('dodajKsiazke')">Dodaj Książkę</a>
+    <a href="#" onclick="showTab('dodajOpowiadanie')">Dodaj Opowiadanie</a>
+    <a href="#" onclick="showTab('dodajMuzyke')">Dodaj Utwór</a>
+  </nav>
+
+  <div id="wiersze" class="tab active">
+    <h2>Moje Wiersze</h2>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Quill_pen_icon.svg" alt="Pióro" class="feather">
+    <div id="lista-wierszy"></div>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Old_book_001.jpg" alt="Książka gotycka" class="gothic-book">
+  </div>
+
+  <div id="ksiazki" class="tab"><h2>Moje Książki</h2><div id="lista-ksiazek"></div></div>
+  <div id="opowiadania" class="tab"><h2>Moje Opowiadania</h2><div id="lista-opowiadan"></div></div>
+  <div id="muzyka" class="tab"><h2>Moja Muzyka</h2><div id="lista-muzyki"></div></div>
+
+  <script>
+    const isAdmin = true;
+    const wsparcie = JSON.parse(localStorage.getItem("wsparcie") || "[]");
+
+    function showTab(id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function ustawWesprzyj(kat, i) {
+      const klucz = `${kat}_${i}`;
+      wsparcie.push(klucz);
+      localStorage.setItem("wsparcie", JSON.stringify(wsparcie));
+      pokazWszystko();
+    }
+
+    function czyWsparte(kat, i) {
+      return wsparcie.includes(`${kat}_${i}`);
+    }
+
+    function renderItem(id, dane, kategoria) {
+      const kontener = document.getElementById(id);
+      kontener.innerHTML = '';
+      dane.forEach((el, i) => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        const btns = isAdmin ? `<div class='admin-buttons'>
+          <button onclick="edytuj('${kategoria}',${i})">Edytuj</button>
+          <button onclick="eksportuj('${kategoria}',${i})">Eksportuj</button>
+          <button onclick="usun('${kategoria}',${i})">Usuń</button>
+        </div>` : '';
+        const danePliku = new Blob([el.tytul + "\\n\\n" + (el.tresc || el.opis)], { type: "text/plain" });
+        const plik = URL.createObjectURL(danePliku);
+        const dlaUsera = czyWsparte(kategoria, i) ? `<a href="${plik}" download="${el.tytul}.txt"><button>Pobierz</button></a>` :
+        `<button onclick="window.open('https://www.paypal.com/donate?business=stanislawrynkowski2@gmail.com&currency_code=PLN&amount=5')">Wesprzyj</button>
+         <button onclick="ustawWesprzyj('${kategoria}',${i})">Potwierdź</button>`;
+        div.innerHTML = btns + `<strong>${el.tytul}</strong><br><pre>${el.tresc || el.opis}</pre><div>${dlaUsera}</div>`;
+        kontener.appendChild(div);
+      });
+    }
+
+    function pokazWszystko() {
+      ['wiersze','ksiazki','opowiadania','muzyka'].forEach(k => {
+        const dane = JSON.parse(localStorage.getItem(k) || "[]");
+        renderItem(`lista-${k}`, dane, k);
+      });
+    }
+
+    function edytuj(k, i) {
+      const dane = JSON.parse(localStorage.getItem(k) || "[]");
+      const nowyT = prompt("Nowy tytuł:", dane[i].tytul);
+      const nowaZaw = prompt("Nowa treść/opis:", dane[i].tresc || dane[i].opis);
+      if (nowyT && nowaZaw) {
+        dane[i].tytul = nowyT;
+        if (dane[i].tresc !== undefined) dane[i].tresc = nowaZaw;
+        if (dane[i].opis !== undefined) dane[i].opis = nowaZaw;
+        localStorage.setItem(k, JSON.stringify(dane));
+        pokazWszystko();
+      }
+    }
+
+    function eksportuj(k, i) {
+      const dane = JSON.parse(localStorage.getItem(k) || "[]")[i];
+      const blob = new Blob([dane.tytul + "\\n\\n" + (dane.tresc || dane.opis)], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = dane.tytul + ".txt";
+      a.click();
+    }
+
+    function usun(k, i) {
+      const dane = JSON.parse(localStorage.getItem(k) || "[]");
+      dane.splice(i, 1);
+      localStorage.setItem(k, JSON.stringify(dane));
+      pokazWszystko();
+    }
+
+    pokazWszystko();
+  </script>
+</body>
+</html>
